@@ -8,11 +8,14 @@ __author__ = """\n""".join(['Zichen Wang <zichen.wang@mssm.edu>'])
 
 import os
 import urllib2, gzip
+import cPickle as pickle
+from classes import Gene
 
 def retrieve_annotation(url=None):
+	'''function for retrieving UCSC gene table, not used'''
 	os.chdir('./annotations')
 	if url is None:
-		## url for UCSC knownGene tabel
+		## url for UCSC knownGene table
 		url = 'http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz'
 	try:
 		u = urllib2.urlopen(url)
@@ -39,16 +42,45 @@ def retrieve_annotation(url=None):
 			print 'Finished downloading file: ', fn
 	return
 
-os.chdir('./annotations')
 
-with gzip.open('knownGenes.txt.gz', 'rb') as f:
-	for line in f:
-		sl = line.strip().split('\t')
-		if line.startswith('#'):
-			header = sl
-			for i in header:
-				print i
+def parse_gene_table(fn):
+	os.chdir('./annotations')
+	genes = []
+	if fn in os.listdir(os.getcwd()):
+		print 'Reading information of genes from %s'%fn
+		if fn.endswith('.gz'):
+			with gzip.open(fn, 'rb') as f:
+				for line in f:
+					if not line.startswith('#'):
+						G = Gene(line)
+						genes.append(G)
 		else:
-			break
+			with open (fn,'r') as f:
+				for line in f:
+					if not line.startswith('#'):
+						G = Gene(line)
+						genes.append(G)
+		print 'Finished reading gene table'
+		print 'Pickling genes data'
+		pfn = fn.split('.')[0] + '.p'
+		pickle.dump(genes, open(pfn, 'wb'))
+		os.chdir('../') # cd back to the working dir
+		print 'Finished '
+		return genes
+	else:
+		raise IOError('File %s not found'%fn)
 
 
+def load_annotations(fn):
+	os.chdir('./annotations')
+	pfn = fn.split('.')[0] + '.p'
+	if pfn in os.listdir(os.getcwd()):
+		print 'Loading annotations from %s'%pfn
+		genes = pickle.load(open(pfn, 'rb'))
+		os.chdir('../')
+	else:
+		print 'Loading annotations from %s'%fn
+		genes = parse_gene_table(fn)
+	return genes
+
+# genes = load_annotations('knownGenes.txt')
