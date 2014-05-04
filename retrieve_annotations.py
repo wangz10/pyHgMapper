@@ -83,4 +83,3 @@ def load_annotations(fn):
 		genes = parse_gene_table(fn)
 	return genes
 
-# genes = load_annotations('knownGenes.txt')

@@ -14,19 +14,19 @@ class GeneElement(object):
 		size = abs(self.position[1] - self.position[2])
 		return size
 
-	def _check_coordinates(coordinates):
-		if len(coordinates) == 3 and type(coordinates[0])== str \
-			and type(coordinates[1]) == int and type(coordinates[2]) == int:
-			return coordinates
-		else:
-			raise ValueError ('The coordinates are not in a correct format.')
+	# def _check_coordinates(self, coordinates):
+	# 	if len(coordinates) == 3 and type(coordinates[0])== str \
+	# 		and type(coordinates[1]) == int and type(coordinates[2]) == int:
+	# 		return coordinates
+	# 	else:
+	# 		raise ValueError ('The coordinates are not in a correct format.')
 
 	def __contains__(self, coordinates):
 		'''
 		The format of coordinates should be:
 		coordinates = [chrom, start(int), end(int)]
 		'''
-		coordinates = _check_coordinates(coordinates)
+		# coordinates = _check_coordinates(coordinates)
 		start = min(self.position[1], self.position[2])
 		end = max(self.position[1], self.position[2])
 		if coordinates[0] == self.chrom:
@@ -63,9 +63,8 @@ class Gene(GeneElement):
 	"""docstring for Gene"""
 	def __init__(self, line): # line is the line in UCSC gene table
 		sl = line.strip().split('\t') # sl is the splited line in gene table
+		GeneElement(self.chrom, int(float(sl[4])), int(float(sl[5]))) ## chrom, strand, txStart, txEnd 
 		self.refSeqId = sl[1]
-		self.chrom = sl[2]
-		self.position = [self.chrom, int(float(sl[4])), int(float(sl[5]))] ## chrom, strand, txStart, txEnd 
 		self.CDS = GeneElement(sl[2], sl[6], sl[7])
 		self.exonCount = int(sl[8])
 		self.exons = []
@@ -79,8 +78,15 @@ class Gene(GeneElement):
 
 class Indel(GeneElement):
 	"""docstring for Indel"""
-	def __init__(self, coordinates, typeStr):
-		coordinates = _check_coordinates(coordinates)
+	def __init__(self, coordinates, confidence, typeStr):
+		GeneElement.__init__(self, *coordinates)
 		self.position = coordinates
-		self.typeStr = typeStr
+		self.confidence = confidence
+		if typeStr.startswith('insertion'):
+			self.typeStr = 'insertion'
+		elif typeStr.startswith('deletion'):
+			self.typeStr = 'deletion'
+		else:
+			raise ValueError('Unrecognizable typeStr %s'%typeStr)
 
+		
