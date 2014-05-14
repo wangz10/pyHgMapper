@@ -74,7 +74,7 @@ class Gene(GeneElement):
 		self.name = sl[12]
 
 	def __str__(self):
-		return self.refSeqId
+		return self.name
 
 class Indel(GeneElement):
 	"""docstring for Indel"""

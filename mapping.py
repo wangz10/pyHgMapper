@@ -47,6 +47,11 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	genes = load_annotations(annotation_fn)
 	for indel in read_indel_iter(indel_fn):
 		for gene in genes:
-			if indel in gene:
+			if indel.position in gene:
+				print 'indel position:%s, mapped to gene %s'%(indel.position, gene.name)
 				mapped.append((indel, gene))
 	return mapped
+
+## example:
+mapped = mapping('NA12878_to_hg19.indel')
+
