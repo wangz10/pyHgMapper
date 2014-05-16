@@ -63,7 +63,8 @@ class Gene(GeneElement):
 	"""docstring for Gene"""
 	def __init__(self, line): # line is the line in UCSC gene table
 		sl = line.strip().split('\t') # sl is the splited line in gene table
-		GeneElement(self.chrom, int(float(sl[4])), int(float(sl[5]))) ## chrom, strand, txStart, txEnd 
+		self.chrom = sl[2]
+		GeneElement.__init__(self, sl[2], int(float(sl[4])), int(float(sl[5]))) ## chrom, strand, txStart, txEnd 
 		self.refSeqId = sl[1]
 		self.CDS = GeneElement(sl[2], sl[6], sl[7])
 		self.exonCount = int(sl[8])
@@ -80,7 +81,6 @@ class Indel(GeneElement):
 	"""docstring for Indel"""
 	def __init__(self, coordinates, confidence, typeStr):
 		GeneElement.__init__(self, *coordinates)
-		self.position = coordinates
 		self.confidence = confidence
 		if typeStr.startswith('insertion'):
 			self.typeStr = 'insertion'

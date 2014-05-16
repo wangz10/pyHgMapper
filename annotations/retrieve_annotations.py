@@ -13,7 +13,6 @@ from classes import Gene
 
 def retrieve_annotation(url=None):
 	'''function for retrieving UCSC gene table, not used'''
-	os.chdir('./annotations')
 	if url is None:
 		## url for UCSC knownGene table
 		url = 'http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz'
@@ -44,7 +43,6 @@ def retrieve_annotation(url=None):
 
 
 def parse_gene_table(fn):
-	os.chdir('./annotations')
 	genes = []
 	if fn in os.listdir(os.getcwd()):
 		print 'Reading information of genes from %s'%fn
@@ -64,7 +62,6 @@ def parse_gene_table(fn):
 		print 'Pickling genes data'
 		pfn = fn.split('.')[0] + '.p'
 		pickle.dump(genes, open(pfn, 'wb'))
-		os.chdir('../') # cd back to the working dir
 		print 'Finished '
 		return genes
 	else:
@@ -72,12 +69,10 @@ def parse_gene_table(fn):
 
 
 def load_annotations(fn):
-	os.chdir('./annotations')
 	pfn = fn.split('.')[0] + '.p'
 	if pfn in os.listdir(os.getcwd()):
 		print 'Loading annotations from %s'%pfn
 		genes = pickle.load(open(pfn, 'rb'))
-		os.chdir('../')
 	else:
 		print 'Loading annotations from %s'%fn
 		genes = parse_gene_table(fn)

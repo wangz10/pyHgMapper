@@ -43,15 +43,16 @@ def read_indel_iter(fn):
 
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a draft function for crudely mapping indels to genes'''
-	mapped = []
 	genes = load_annotations(annotation_fn)
+	print 'Number of genes in the referrence genome: ',len(genes)
 	for indel in read_indel_iter(indel_fn):
 		for gene in genes:
 			if indel.position in gene:
-				print 'indel position:%s, mapped to gene %s'%(indel.position, gene.name)
-				mapped.append((indel, gene))
-	return mapped
+				print 'indel position:%s, mapped to gene %s'%(indel.position, gene.refSeqId)
+				yield (indel, gene)
 
-## example:
-mapped = mapping('NA12878_to_hg19.indel')
-
+## test:
+c = 0
+for indel, gene in mapping('NA12878_to_hg19.indel'):
+	c += 1
+print 'total # of mapped indel-gene pairs:', c
