@@ -4,6 +4,13 @@ All classes used.
 Created on 4/27/2014
 """
 
+def _check_coordinates(self, coordinates):
+	if len(coordinates) == 3 and type(coordinates[0])== str \
+		and type(coordinates[1]) == int and type(coordinates[2]) == int:
+		return coordinates
+	else:
+		raise ValueError ('The coordinates are not in a correct format.')
+
 class GeneElement(object):
 	"""docstring for GeneElement"""
 	def __init__(self, chrom, start, end):
@@ -14,19 +21,12 @@ class GeneElement(object):
 		size = abs(self.position[1] - self.position[2])
 		return size
 
-	# def _check_coordinates(self, coordinates):
-	# 	if len(coordinates) == 3 and type(coordinates[0])== str \
-	# 		and type(coordinates[1]) == int and type(coordinates[2]) == int:
-	# 		return coordinates
-	# 	else:
-	# 		raise ValueError ('The coordinates are not in a correct format.')
-
 	def __contains__(self, coordinates):
 		'''
 		The format of coordinates should be:
 		coordinates = [chrom, start(int), end(int)]
 		'''
-		# coordinates = _check_coordinates(coordinates)
+		coordinates = _check_coordinates(coordinates)
 		start = min(self.position[1], self.position[2])
 		end = max(self.position[1], self.position[2])
 		if coordinates[0] == self.chrom:
