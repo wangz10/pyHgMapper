@@ -6,9 +6,13 @@ Created on 5/4/2014
 
 from classes import *
 from retrieve_annotations import *
-import pygal as pg
+
 import os
+import datetime as dt
 from collections import Counter
+import cookielib, urllib2
+import poster
+import pygal as pg
 
 def read_indel(fn):
 	'''read indels from .indel file into a list of Indels'''
@@ -74,6 +78,46 @@ def _mapping(indel_fn, annotation_fn='knownGenes.txt'):
 			b += 1
 	return genes_indel, a, b, c, d
 
+def format_gene_sets(genes_indel):
+	"""convert the genes_indel dictionary to a gene-set library format"""
+	d_term_genes = {}
+	# gene_element_levels = ['gene', 'CDS', 'exon']
+	# indel_types = ['insertion', 'deletion']
+	for gene in genes_indel:
+		term = '_'.join(genes_indel[gene])
+		if term not in d_term_genes:
+			d_term_genes[term] = [gene]
+		else:
+			d_term_genes[term].append(gene)
+	return d_term_genes
+		
+def d2gmt(d, gmtfn):
+	"""write a dictionary into gmt file format"""
+	with open (gmtfn) as out:
+		for term in d:
+			out.write(term + '\tna\t')
+			out.write('\t'.join(d[term]) + '\n')
+	return
+
+def enrichr_link(genes, meta=''):
+	"""post a gene list to enrichr server and get the link."""
+	cj = cookielib.CookieJar()
+	opener = poster.streaminghttp.register_openers()
+	opener.add_handler(urllib2.HTTPCookieProcessor(cookielib.CookieJar()))
+
+	params = {'list':genes,'description':meta}
+	datagen, headers = poster.encode.multipart_encode(params)
+	url = "http://amp.pharm.mssm.edu/Enrichr/enrich"
+	request = urllib2.Request(url, datagen, headers)
+	urllib2.urlopen(request)
+
+	x = urllib2.urlopen("http://amp.pharm.mssm.edu/Enrichr/share")
+	response = x.read()
+	split_strings = response.split('"')
+	linkID = split_strings[3]
+	share_url_head = "http://amp.pharm.mssm.edu/Enrichr/enrich?dataset="
+	link = share_url_head + linkID
+	return link
 
 def genomic_distribution(indel_fn):
 	"""get chromosome distribution of insertion and deletion"""
@@ -115,23 +159,46 @@ def plot_bars(c_chroms_i, c_chroms_d):
 	bar_plot.render_to_file('chromosome_distribution.svg')
 	return
 
-def write_output(genes_indel, a, b, c, d, out):
-	d = {}
-	# for gene in genes_indel:
 
+def write_output(indel_fn, d_term_genes, a, b, c, d):
+	"""write the running infomation and results into a txt file"""
+	outfn = indel_fn[0:-6] + '.out'
+	with open (outfn, 'w') as out:
+		## overall summary statistics:
+		out.write('Summary statistics: \n')
+		out.write('Total Number of INDELs: %s\n'%a)
+		out.write('INDELs mapped to genes: %s\n'%b)
+		out.write('INDELs mapped to CDS: %s\n'%c)
+		out.write('INDELs mapped to exons: %s\n'%d)
+
+		## write Enrichr links:
+		out.write('Enrichment analysis for INDELs affected genes: \n')
+		for term in d_term_genes:
+			link = enrichr_link(d[term], meta=term)
+			out.write(term + ':\t' + link + '\n')
 	return
 
-def output_wraper(genes_indel, a, b, c, d, c_chroms_i, c_chroms_d):
+def output_wraper(indel_fn, d_term_genes, a, b, c, d, c_chroms_i, c_chroms_d):
 	try:
 		os.mkdir('output')
 	except WindowsError:
 		pass
 	os.chdir('./output')
+	write_output(indel_fn, d_term_genes, a, b, c, d)
 	plot_pie(a, b, c, d)
 	plot_bars(c_chroms_i, c_chroms_d)
 	return
 
+def main():
+	start_time = dt.datetime.now()
+	# ...
+	end_time = dt..datetime.now()
+	return
+
+if __name__ == '__main__': ## potentially make this a cmd line tool
+	main()
+
 ## test:
 # output_wraper({},10,5,4,3)
-i,d = genomic_distribution('NA12878_to_hg19.indel')
-plot_bars(i,d)
+# i,d = genomic_distribution('NA12878_to_hg19.indel')
+# plot_bars(i,d)
