@@ -4,7 +4,7 @@ All classes used.
 Created on 4/27/2014
 """
 
-def _check_coordinates(self, coordinates):
+def _check_coordinates(coordinates):
 	if len(coordinates) == 3 and type(coordinates[0])== str \
 		and type(coordinates[1]) == int and type(coordinates[2]) == int:
 		return coordinates

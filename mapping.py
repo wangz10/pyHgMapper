@@ -3,9 +3,8 @@ Mapping utils used for mapping chromosome coordinates to genes or other gene ele
 
 Created on 5/4/2014
 """
-
+from annotations import *
 from classes import *
-from retrieve_annotations import *
 
 import os
 import datetime as dt
@@ -47,10 +46,10 @@ def read_indel_iter(fn):
 				indel = Indel(coordinates, confidence, typeStr)
 				yield indel
 
-def _mapping(indel_fn, annotation_fn='knownGenes.txt'):
+def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a draft function for crudely mapping indels to genes'''
 	genes = load_annotations(annotation_fn)
-	print 'Number of genes in the referrence genome: ', len(genes)
+	# print 'Number of genes in the referrence genome: ', len(genes)
 	## counters:
 	a = 0 # indel count
 	b = 0 # indels mapped to genes
@@ -60,14 +59,18 @@ def _mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	for indel in read_indel_iter(indel_fn):
 		a += 1
 		position = indel.position
+		chrom = indel.chrom
+		if chrom == 'chr23':
+			chrom = 'chrX'
 		mapped_g = False # whether mapped to genes
-		for gene in genes:
+		mapped_cds = False
+		for gene in genes[chrom]:
 			if position in gene:
 				mapped_g = True
 				gene_name = gene.name
 				genes_indel[gene_name] = [indel.typeStr, 'gene']
 				if position in gene.CDS:
-					c += 1
+					mapped_cds = True
 					genes_indel[gene_name][1] = 'CDS'
 					for exon in gene.exons:
 						if position in exon:
@@ -76,6 +79,8 @@ def _mapping(indel_fn, annotation_fn='knownGenes.txt'):
 							break
 		if mapped_g:
 			b += 1
+		if mapped_cds:
+			c += 1
 	return genes_indel, a, b, c, d
 
 def format_gene_sets(genes_indel):
@@ -159,22 +164,23 @@ def plot_bars(c_chroms_i, c_chroms_d):
 	bar_plot.render_to_file('chromosome_distribution.svg')
 	return
 
-
 def write_output(indel_fn, d_term_genes, a, b, c, d):
 	"""write the running infomation and results into a txt file"""
 	outfn = indel_fn[0:-6] + '.out'
 	with open (outfn, 'w') as out:
 		## overall summary statistics:
 		out.write('Summary statistics: \n')
+		out.write('-'*8 + '\n')
 		out.write('Total Number of INDELs: %s\n'%a)
 		out.write('INDELs mapped to genes: %s\n'%b)
 		out.write('INDELs mapped to CDS: %s\n'%c)
 		out.write('INDELs mapped to exons: %s\n'%d)
-
+		out.write('\n')
 		## write Enrichr links:
 		out.write('Enrichment analysis for INDELs affected genes: \n')
+		out.write('-'*8 + '\n')
 		for term in d_term_genes:
-			link = enrichr_link(d[term], meta=term)
+			link = enrichr_link(d_term_genes[term], meta=term)
 			out.write(term + ':\t' + link + '\n')
 	return
 
@@ -187,18 +193,19 @@ def output_wraper(indel_fn, d_term_genes, a, b, c, d, c_chroms_i, c_chroms_d):
 	write_output(indel_fn, d_term_genes, a, b, c, d)
 	plot_pie(a, b, c, d)
 	plot_bars(c_chroms_i, c_chroms_d)
+
 	return
 
 def main():
 	start_time = dt.datetime.now()
 	# ...
-	end_time = dt..datetime.now()
+	end_time = dt.datetime.now()
 	return
 
 if __name__ == '__main__': ## potentially make this a cmd line tool
 	main()
 
-## test:
-# output_wraper({},10,5,4,3)
-# i,d = genomic_distribution('NA12878_to_hg19.indel')
-# plot_bars(i,d)
+genes_indel, a, b, c, d = mapping('NA12878_to_hg19.indel')
+print a,b,c,d
+d_term_genes = format_gene_sets(genes_indel)
+write_output('NA12878_to_hg19.indel', d_term_genes, a, b, c, d)

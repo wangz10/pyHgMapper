@@ -6,10 +6,12 @@ Created on 4/27/2014
 
 __author__ = """\n""".join(['Zichen Wang <zichen.wang@mssm.edu>'])
 
+from classes import Gene
+
 import os
 import urllib2, gzip
 import cPickle as pickle
-from classes import Gene
+
 
 def retrieve_annotation(url=None):
 	'''function for retrieving UCSC gene table, not used'''
@@ -43,7 +45,7 @@ def retrieve_annotation(url=None):
 
 
 def parse_gene_table(fn):
-	genes = []
+	genes = {}
 	if fn in os.listdir(os.getcwd()):
 		print 'Reading information of genes from %s'%fn
 		if fn.endswith('.gz'):
@@ -51,18 +53,27 @@ def parse_gene_table(fn):
 				for line in f:
 					if not line.startswith('#'):
 						G = Gene(line)
-						genes.append(G)
+						chrom = G.chrom
+						if chrom not in genes:
+							genes[chrom] = [G]
+						else:
+							genes[chrom].append(G)
 		else:
 			with open (fn,'r') as f:
 				for line in f:
 					if not line.startswith('#'):
 						G = Gene(line)
-						genes.append(G)
+						chrom = G.chrom
+						if chrom not in genes:
+							genes[chrom] = [G]
+						else:
+							genes[chrom].append(G)
+
 		print 'Finished reading gene table'
 		print 'Pickling genes data'
 		pfn = fn.split('.')[0] + '.p'
 		pickle.dump(genes, open(pfn, 'wb'))
-		print 'Finished '
+		print 'Finished pickling'
 		return genes
 	else:
 		raise IOError('File %s not found'%fn)
