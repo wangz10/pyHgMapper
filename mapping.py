@@ -6,8 +6,9 @@ Created on 5/4/2014
 
 from classes import *
 from retrieve_annotations import *
-import pygal
+import pygal as pg
 import os
+from collections import Counter
 
 def read_indel(fn):
 	'''read indels from .indel file into a list of Indels'''
@@ -73,29 +74,64 @@ def _mapping(indel_fn, annotation_fn='knownGenes.txt'):
 			b += 1
 	return genes_indel, a, b, c, d
 
-def output_wraper(genes_indel, a, b, c, d):
-	try:
-		os.mkdir('output')
-	except WindowsError:
-		pass
-	os.chdir('./output')
-	plots(10,5,4,3)
-	return
+
+def genomic_distribution(indel_fn):
+	"""get chromosome distribution of insertion and deletion"""
+	chroms_i = []
+	chroms_d = []
+	for indel in read_indel_iter(indel_fn):
+		chrom = int(indel.chrom[3:]) # convert chrom to int
+		if indel.typeStr == 'insertion':
+			chroms_i.append(chrom)
+		else:
+			chroms_d.append(chrom)
+		c_chroms_i = Counter(chroms_i)
+		c_chroms_d = Counter(chroms_d)
+	return c_chroms_i, c_chroms_d
 
 
-def plots(a, b, c, d):
+def plot_pie(a, b, c, d):
 	a = float(a)
-	pie_chart = pygal.Pie()
+	pie_chart = pg.Pie()
 	pie_chart.title = 'Indels mapped to genomic elements (in %)'
 	pie_chart.add('Intergenic', 100*(a-b)/a)
 	pie_chart.add('Gene (non-coding region)', 100*(b-c)/a)
 	pie_chart.add('Exon', 100*d/a)
 	pie_chart.add('Intron', 100*(c-d)/a)
-	pie_chart.render_to_file('pie_chart.svg')
+	pie_chart.render_to_file('indel_gene_element_mapping.svg')
 	return
 
-def write_output(genes_indel, a, b, c, d): 
+
+def plot_bars(c_chroms_i, c_chroms_d):
+	"""bar plots for chromosome distribution of INDELs"""
+	bar_plot = pg.Bar(spacing=0, x_title='Chromosomes', y_title='Number of INDELs')
+	bar_plot.title = 'Chromosome distribution of INDELs'
+	chroms = c_chroms_i.keys()
+	chroms.sort()
+	bar_plot.x_labels = map(str, chroms)
+	bar_plot.add('Insertion', [c_chroms_i[x] for x in chroms])
+	bar_plot.add('Deletion', [c_chroms_d[x] for x in chroms])
+	bar_plot.add('INDELs', [c_chroms_i[x] + c_chroms_d[x] for x in chroms])
+	bar_plot.render_to_file('chromosome_distribution.svg')
+	return
+
+def write_output(genes_indel, a, b, c, d, out):
+	d = {}
+	# for gene in genes_indel:
+
+	return
+
+def output_wraper(genes_indel, a, b, c, d, c_chroms_i, c_chroms_d):
+	try:
+		os.mkdir('output')
+	except WindowsError:
+		pass
+	os.chdir('./output')
+	plot_pie(a, b, c, d)
+	plot_bars(c_chroms_i, c_chroms_d)
 	return
 
 ## test:
-output_wraper({},10,5,4,3)
+# output_wraper({},10,5,4,3)
+i,d = genomic_distribution('NA12878_to_hg19.indel')
+plot_bars(i,d)
