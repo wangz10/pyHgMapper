@@ -7,9 +7,11 @@ from annotations import *
 from classes import *
 
 import os
+import argparse as ap
 import datetime as dt
 from collections import Counter
 import cookielib, urllib2
+## dependency:
 import poster
 import pygal as pg
 
@@ -47,7 +49,7 @@ def read_indel_iter(fn):
 				yield indel
 
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
-	'''a draft function for crudely mapping indels to genes'''
+	'''a  function for mapping indels to genes'''
 	genes = load_annotations(annotation_fn)
 	# print 'Number of genes in the referrence genome: ', len(genes)
 	## counters:
@@ -98,7 +100,7 @@ def format_gene_sets(genes_indel):
 		
 def d2gmt(d, gmtfn):
 	"""write a dictionary into gmt file format"""
-	with open (gmtfn) as out:
+	with open (gmtfn, 'w') as out:
 		for term in d:
 			out.write(term + '\tna\t')
 			out.write('\t'.join(d[term]) + '\n')
@@ -126,6 +128,7 @@ def enrichr_link(genes, meta=''):
 
 def genomic_distribution(indel_fn):
 	"""get chromosome distribution of insertion and deletion"""
+	print 'Calculating genomic distribution statistics'
 	chroms_i = []
 	chroms_d = []
 	for indel in read_indel_iter(indel_fn):
@@ -179,33 +182,50 @@ def write_output(indel_fn, d_term_genes, a, b, c, d):
 		## write Enrichr links:
 		out.write('Enrichment analysis for INDELs affected genes: \n')
 		out.write('-'*8 + '\n')
+		print 'Performing enrichment analysis for the gene lists'
 		for term in d_term_genes:
 			link = enrichr_link(d_term_genes[term], meta=term)
 			out.write(term + ':\t' + link + '\n')
 	return
 
-def output_wraper(indel_fn, d_term_genes, a, b, c, d, c_chroms_i, c_chroms_d):
+def output_wraper(indel_fn, d_term_genes, a, b, c, d):
+	c_chroms_i, c_chroms_d = genomic_distribution(indel_fn)
 	try:
 		os.mkdir('output')
 	except WindowsError:
 		pass
 	os.chdir('./output')
 	write_output(indel_fn, d_term_genes, a, b, c, d)
+	d2gmt(d_term_genes, 'genes_affected_by_indels.gmt')
 	plot_pie(a, b, c, d)
 	plot_bars(c_chroms_i, c_chroms_d)
-
-	return
+	pwd = os.getcwd()
+	print "All results are stored in %s" % pwd
+	return 
 
 def main():
+	## parsing argvs
+	parser = ap.ArgumentParser()
+	parser.add_argument('indel filename', help='the name of the indel file', type=str)
+	parser.add_argument('-a','--annotation', help='the name of gene annotation file name', default='knownGenes.txt', type=str)
+	args = vars(parser.parse_args())
+	indel_fn = args['indel filename']
+	annotation_fn = args['annotation']
+
 	start_time = dt.datetime.now()
-	# ...
+	print 'Thank you for using pyHgMapper'
+	print start_time
+	print '-'*10
+	print 'Mapping INDELs in %s to genome' % indel_fn
+	## map indels:
+	genes_indel, a, b, c, d = mapping(indel_fn, annotation_fn=annotation_fn)
+	d_term_genes = format_gene_sets(genes_indel)
+	## output results:
+	output_wraper(indel_fn, d_term_genes, a, b, c, d)
 	end_time = dt.datetime.now()
+	print end_time
+	print 'time elapsed: ', end_time - start_time
 	return
 
 if __name__ == '__main__': ## potentially make this a cmd line tool
 	main()
-
-genes_indel, a, b, c, d = mapping('NA12878_to_hg19.indel')
-print a,b,c,d
-d_term_genes = format_gene_sets(genes_indel)
-write_output('NA12878_to_hg19.indel', d_term_genes, a, b, c, d)

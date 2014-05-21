@@ -3,5 +3,7 @@
 *.txt
 *.indel
 *.p
+## output:
 *.svg
 *.out
+*.gmt
