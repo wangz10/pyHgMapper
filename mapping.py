@@ -12,8 +12,12 @@ import datetime as dt
 from collections import Counter
 import cookielib, urllib2
 ## dependency:
+import numpy as np
+from scipy.stats import gaussian_kde
+import matplotlib.pyplot as plt
 import poster
 import pygal as pg
+
 
 def read_indel(fn):
 	'''read indels from .indel file into a list of Indels'''
@@ -32,6 +36,7 @@ def read_indel(fn):
 				indels.append(indel)
 	return indels
 
+
 def read_indel_iter(fn):
 	"""yield generator for Indels if the file is large"""
 	indels = []
@@ -48,6 +53,7 @@ def read_indel_iter(fn):
 				indel = Indel(coordinates, confidence, typeStr)
 				yield indel
 
+
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a  function for mapping indels to genes'''
 	genes = load_annotations(annotation_fn)
@@ -58,10 +64,19 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	c = 0 # indels mapped to CDS
 	d = 0 # indels mapped to exons
 	genes_indel = {} # genes with insertion/deletion
+	insertion_lengths = []
+	deletion_lengths = []
 	for indel in read_indel_iter(indel_fn):
 		a += 1
 		position = indel.position
 		chrom = indel.chrom
+		typeStr = indel.typeStr
+
+		if typeStr == 'insertion':
+			insertion_lengths.append(len(indel))
+		elif typeStr == 'deletion':
+			deletion_lengths.append(len(indel))
+
 		if chrom == 'chr23':
 			chrom = 'chrX'
 		mapped_g = False # whether mapped to genes
@@ -70,7 +85,7 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 			if position in gene:
 				mapped_g = True
 				gene_name = gene.name
-				genes_indel[gene_name] = [indel.typeStr, 'gene']
+				genes_indel[gene_name] = [typeStr, 'gene']
 				if position in gene.CDS:
 					mapped_cds = True
 					genes_indel[gene_name][1] = 'CDS'
@@ -83,7 +98,8 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 			b += 1
 		if mapped_cds:
 			c += 1
-	return genes_indel, a, b, c, d
+	return genes_indel, a, b, c, d, insertion_lengths, deletion_lengths
+
 
 def format_gene_sets(genes_indel):
 	"""convert the genes_indel dictionary to a gene-set library format"""
@@ -98,6 +114,7 @@ def format_gene_sets(genes_indel):
 			d_term_genes[term].append(gene)
 	return d_term_genes
 		
+
 def d2gmt(d, gmtfn):
 	"""write a dictionary into gmt file format"""
 	with open (gmtfn, 'w') as out:
@@ -105,6 +122,7 @@ def d2gmt(d, gmtfn):
 			out.write(term + '\tna\t')
 			out.write('\t'.join(d[term]) + '\n')
 	return
+
 
 def enrichr_link(genes, meta=''):
 	"""post a gene list to enrichr server and get the link."""
@@ -125,6 +143,7 @@ def enrichr_link(genes, meta=''):
 	share_url_head = "http://amp.pharm.mssm.edu/Enrichr/enrich?dataset="
 	link = share_url_head + linkID
 	return link
+
 
 def genomic_distribution(indel_fn):
 	"""get chromosome distribution of insertion and deletion"""
@@ -167,6 +186,41 @@ def plot_bars(c_chroms_i, c_chroms_d):
 	bar_plot.render_to_file('chromosome_distribution.svg')
 	return
 
+
+def plot_hist(insertion_lengths, deletion_lengths):
+	"""plot length distribution of INDELs with matplotlib"""
+	fig = plt.figure(figsize=(12, 8))
+	ax1 = fig.add_subplot(121)
+	ax2 = fig.add_subplot(122)
+	
+	insertion_lengths = np.array(insertion_lengths)
+	deletion_lengths = np.array(deletion_lengths)
+	indel_lengths = np.concatenate((insertion_lengths, deletion_lengths))
+	min_len, max_len = indel_lengths.min(), indel_lengths.max() # get the range for lengths of INDELs
+	bins = np.linspace(min_len, max_len, 20) # for histograms
+	ax1.hist(insertion_lengths, bins=bins, stacked=True, label='insertion', color='b')
+	ax1.hist(deletion_lengths, bins=bins, stacked=True, label='deletion', color='r')
+	ax1.legend(loc='best')
+	ax1.set_xlabel('Lengths', fontsize=18)
+	ax1.set_ylabel('Counts', fontsize=18)
+
+	x = np.linspace(min_len, max_len) # for PDF
+	arrays = [insertion_lengths, deletion_lengths, indel_lengths]
+	labels = ['insertion', 'deletion', 'INDEL']
+	colors = ['b', 'r', 'm']
+	for array, l, c in zip(arrays, labels, colors):
+		kde = gaussian_kde(array)
+		ax2.plot(x, kde(x), label=l, color=c, lw=2)
+	ax2.legend(loc='best')
+	ax2.yaxis.tick_right() 
+	ax2.yaxis.set_label_position("right") # put y-label on the right
+	ax2.set_xlabel('Lengths', fontsize=18)
+	ax2.set_ylabel('Probability', fontsize=18)
+	fig.tight_layout()
+	plt.savefig('lengths_distributions.pdf')
+	return
+
+
 def write_output(indel_fn, d_term_genes, a, b, c, d):
 	"""write the running infomation and results into a txt file"""
 	outfn = indel_fn[0:-6] + '.out'
@@ -188,7 +242,8 @@ def write_output(indel_fn, d_term_genes, a, b, c, d):
 			out.write(term + ':\t' + link + '\n')
 	return
 
-def output_wraper(indel_fn, d_term_genes, a, b, c, d):
+
+def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths):
 	c_chroms_i, c_chroms_d = genomic_distribution(indel_fn)
 	try:
 		os.mkdir('output')
@@ -199,9 +254,11 @@ def output_wraper(indel_fn, d_term_genes, a, b, c, d):
 	d2gmt(d_term_genes, 'genes_affected_by_indels.gmt')
 	plot_pie(a, b, c, d)
 	plot_bars(c_chroms_i, c_chroms_d)
+	plot_hist(insertion_lengths, deletion_lengths)
 	pwd = os.getcwd()
 	print "All results are stored in %s" % pwd
 	return 
+
 
 def main():
 	## parsing argvs
@@ -218,14 +275,15 @@ def main():
 	print '-'*10
 	print 'Mapping INDELs in %s to genome' % indel_fn
 	## map indels:
-	genes_indel, a, b, c, d = mapping(indel_fn, annotation_fn=annotation_fn)
+	genes_indel, a, b, c, d, insertion_lengths, deletion_lengths = mapping(indel_fn, annotation_fn=annotation_fn)
 	d_term_genes = format_gene_sets(genes_indel)
 	## output results:
-	output_wraper(indel_fn, d_term_genes, a, b, c, d)
+	output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths)
 	end_time = dt.datetime.now()
 	print end_time
 	print 'time elapsed: ', end_time - start_time
 	return
 
-if __name__ == '__main__': ## potentially make this a cmd line tool
+
+if __name__ == '__main__':
 	main()
