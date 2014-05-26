@@ -66,7 +66,7 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	genes_indel = {} # genes with insertion/deletion
 	insertion_lengths = []
 	deletion_lengths = []
-	print 'Mapping INDELs to genome'
+	print 'Mapping INDELs in %s to genome' % indel_fn
 	for indel in read_indel_iter(indel_fn):
 		a += 1
 		if indel.chrom == 'chr23':
@@ -150,13 +150,13 @@ def d2gmt(d, gmtfn):
 	return
 
 
-def enrichr_link(genes, meta=''):
+def enrichr_link(genesStr, meta=''):
 	"""post a gene list to enrichr server and get the link."""
 	cj = cookielib.CookieJar()
 	opener = poster.streaminghttp.register_openers()
 	opener.add_handler(urllib2.HTTPCookieProcessor(cookielib.CookieJar()))
 
-	params = {'list':genes,'description':meta}
+	params = {'list':genesStr,'description':meta}
 	datagen, headers = poster.encode.multipart_encode(params)
 	url = "http://amp.pharm.mssm.edu/Enrichr/enrich"
 	request = urllib2.Request(url, datagen, headers)
@@ -264,7 +264,7 @@ def write_output(indel_fn, d_term_genes, a, b, c, d):
 		out.write('-'*8 + '\n')
 		print 'Performing enrichment analysis for the gene lists'
 		for term in d_term_genes:
-			link = enrichr_link(d_term_genes[term], meta=term)
+			link = enrichr_link('\n'.join(d_term_genes[term]), meta=term)
 			out.write(term + ':\t' + link + '\n')
 	return
 
@@ -300,7 +300,6 @@ def main():
 	print 'Thank you for using pyHgMapper'
 	print start_time
 	print '-'*10
-	print 'Mapping INDELs in %s to genome' % indel_fn
 	## map indels:
 	indels, genes_indel, a, b, c, d, insertion_lengths, deletion_lengths = mapping(indel_fn, annotation_fn=annotation_fn)
 	d_term_genes = format_gene_sets(genes_indel)
@@ -309,7 +308,7 @@ def main():
 	end_time = dt.datetime.now()
 	print '-'*10
 	print end_time
-	print 'time elapsed: ', end_time - start_time
+	print 'Finished, time elapsed: ', end_time - start_time
 	return
 
 
