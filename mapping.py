@@ -307,6 +307,7 @@ def main():
 	## output results:
 	output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths, indels)
 	end_time = dt.datetime.now()
+	print '-'*10
 	print end_time
 	print 'time elapsed: ', end_time - start_time
 	return
