@@ -57,7 +57,7 @@ def read_indel_iter(fn):
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a  function for mapping indels to genes'''
 	genes = load_annotations(annotation_fn)
-	# print 'Number of genes in the referrence genome: ', len(genes)
+	indels = []
 	## counters:
 	a = 0 # indel count
 	b = 0 # indels mapped to genes
@@ -66,46 +66,72 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	genes_indel = {} # genes with insertion/deletion
 	insertion_lengths = []
 	deletion_lengths = []
+	print 'Mapping INDELs to genome'
 	for indel in read_indel_iter(indel_fn):
 		a += 1
+		if indel.chrom == 'chr23':
+			indel.chrom = 'chrX'
 		position = indel.position
 		chrom = indel.chrom
 		typeStr = indel.typeStr
-
 		if typeStr == 'insertion':
 			insertion_lengths.append(len(indel))
 		elif typeStr == 'deletion':
 			deletion_lengths.append(len(indel))
 
-		if chrom == 'chr23':
-			chrom = 'chrX'
-		mapped_g = False # whether mapped to genes
-		mapped_cds = False
+		indel.mapped_genes = []
+		indel.mapped_cds = []
+		indel.mapped_exons = []
 		for gene in genes[chrom]:
 			if position in gene:
-				mapped_g = True
 				gene_name = gene.name
+				indel.mapped_genes.append(str(gene))
 				genes_indel[gene_name] = [typeStr, 'gene']
 				if position in gene.CDS:
-					mapped_cds = True
+					indel.mapped_cds.append(str(gene))
 					genes_indel[gene_name][1] = 'CDS'
 					for exon in gene.exons:
 						if position in exon:
+							indel.mapped_exons.append(str(gene))
 							genes_indel[gene_name][1] = 'exon'
 							d += 1
 							break
-		if mapped_g:
+		if len(indel.mapped_genes) != 0:
 			b += 1
-		if mapped_cds:
+		if len(indel.mapped_cds) != 0:
 			c += 1
-	return genes_indel, a, b, c, d, insertion_lengths, deletion_lengths
+		indels.append(indel)
+	return indels, genes_indel, a, b, c, d, insertion_lengths, deletion_lengths
+
+
+def list_pprint(l):
+	"""pretty print a list """
+	if len(l) == 0:
+		return 'NA'
+	else:
+		return ','.join(l)
+
+
+def indels2bed(indels, indel_fn):
+	"""convert a list of indels to bed format. """
+	outfn = indel_fn[0:-6] + '.bed'
+	header = ['chrom', 'chromStart', 'chromEnd', 'type', 'confScore',
+		'mappedGenes', 'mappedCDS', 'mappedExons']
+	with open (outfn, 'w') as out:
+		out.write('#fields:\t')
+		out.write('\t'.join(header) + '\n')
+		for indel in indels:
+			items = indel.position
+			items.extend([indel.typeStr, indel.confidence, 
+				list_pprint(indel.mapped_genes), list_pprint(indel.mapped_cds), list_pprint(indel.mapped_exons)])
+			items = [str(i) for i in items]
+			out.write('\t'.join(items) + '\n')
+	return
 
 
 def format_gene_sets(genes_indel):
 	"""convert the genes_indel dictionary to a gene-set library format"""
 	d_term_genes = {}
-	# gene_element_levels = ['gene', 'CDS', 'exon']
-	# indel_types = ['insertion', 'deletion']
 	for gene in genes_indel:
 		term = '_'.join(genes_indel[gene])
 		if term not in d_term_genes:
@@ -243,7 +269,7 @@ def write_output(indel_fn, d_term_genes, a, b, c, d):
 	return
 
 
-def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths):
+def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths, indels):
 	c_chroms_i, c_chroms_d = genomic_distribution(indel_fn)
 	try:
 		os.mkdir('output')
@@ -251,6 +277,7 @@ def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletio
 		pass
 	os.chdir('./output')
 	write_output(indel_fn, d_term_genes, a, b, c, d)
+	indels2bed(indels, indel_fn)
 	d2gmt(d_term_genes, 'genes_affected_by_indels.gmt')
 	plot_pie(a, b, c, d)
 	plot_bars(c_chroms_i, c_chroms_d)
@@ -275,10 +302,10 @@ def main():
 	print '-'*10
 	print 'Mapping INDELs in %s to genome' % indel_fn
 	## map indels:
-	genes_indel, a, b, c, d, insertion_lengths, deletion_lengths = mapping(indel_fn, annotation_fn=annotation_fn)
+	indels, genes_indel, a, b, c, d, insertion_lengths, deletion_lengths = mapping(indel_fn, annotation_fn=annotation_fn)
 	d_term_genes = format_gene_sets(genes_indel)
 	## output results:
-	output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths)
+	output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths, indels)
 	end_time = dt.datetime.now()
 	print end_time
 	print 'time elapsed: ', end_time - start_time
