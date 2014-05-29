@@ -6,7 +6,7 @@ Created on 5/4/2014
 from annotations import *
 from classes import *
 
-import os
+import os, sys
 import argparse as ap
 import datetime as dt
 from collections import Counter
@@ -36,10 +36,15 @@ def read_indel(fn):
 				indels.append(indel)
 	return indels
 
+<<<<<<< HEAD
 
 def read_indel_iter(fn):
 	"""yield generator for Indels if the file is large"""
 	indels = []
+=======
+def read_indel_xmap_iter (fn):
+        indels = []
+>>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
 	with open (fn) as f:
 		for line in f:
 			if not line.startswith('#'):
@@ -53,6 +58,40 @@ def read_indel_iter(fn):
 				indel = Indel(coordinates, confidence, typeStr)
 				yield indel
 
+<<<<<<< HEAD
+=======
+def read_indel_iter(fn):
+	"""yield generator for Indels if the file is large"""
+	print "entering read indel iter"
+	if ".bed" == fn[-4:]:
+                return read_indel_bed_iter(fn)
+        else:
+                return read_indel_xmap_iter (fn)
+	
+                
+
+def read_indel_bed_iter(fn):
+	"""yield generator for Indels if the file is large"""
+	print "entering read indel bed iter"
+	indels = []
+	with open (fn) as f:
+		for line in f:
+			if not line.startswith('#'):
+				sl = line.strip().split('\t')
+				chrom = sl[0][3:]
+				if chrom == "X":
+                                        chrom = 23
+                                if not chrom in (map(str, range(1, 24))):
+                                        continue
+                                chrom = "chr"+chrom
+				refStart = int(float(sl[1]))
+				refEnd = int(float(sl[2]))
+				confidence = 10
+				typeStr = "deletion"
+				coordinates = [chrom, refStart, refEnd]
+				indel = Indel(coordinates, confidence, typeStr)
+				yield indel
+>>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
 
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a  function for mapping indels to genes'''
@@ -64,9 +103,13 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	c = 0 # indels mapped to CDS
 	d = 0 # indels mapped to exons
 	genes_indel = {} # genes with insertion/deletion
+<<<<<<< HEAD
 	insertion_lengths = []
 	deletion_lengths = []
 	print 'Mapping INDELs in %s to genome' % indel_fn
+=======
+	print "indel fn: %s" %(indel_fn)
+>>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
 	for indel in read_indel_iter(indel_fn):
 		a += 1
 		if indel.chrom == 'chr23':
@@ -182,12 +225,19 @@ def genomic_distribution(indel_fn):
 			chroms_i.append(chrom)
 		else:
 			chroms_d.append(chrom)
-		c_chroms_i = Counter(chroms_i)
-		c_chroms_d = Counter(chroms_d)
+	if len(chroms_i) == 0:
+                c_chroms_i = Counter()
+        else:
+        	c_chroms_i = Counter(chroms_i)
+        if len(chroms_d) == 0:
+                c_chroms_d = Counter()
+        else:
+        	c_chroms_d = Counter(chroms_d)
 	return c_chroms_i, c_chroms_d
 
 
 def plot_pie(a, b, c, d):
+        print >>sys.stderr, "a: %s, b: %s, c: %s, d: %s" %(a, b, c, d)
 	a = float(a)
 	pie_chart = pg.Pie()
 	pie_chart.title = 'Indels mapped to genomic elements (in %)'
@@ -273,7 +323,8 @@ def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletio
 	c_chroms_i, c_chroms_d = genomic_distribution(indel_fn)
 	try:
 		os.mkdir('output')
-	except WindowsError:
+	except:
+                print >>sys.stderr, "was not able to create directory, output"
 		pass
 	os.chdir('./output')
 	write_output(indel_fn, d_term_genes, a, b, c, d)
