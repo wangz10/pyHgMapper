@@ -19,32 +19,9 @@ import poster
 import pygal as pg
 
 
-def read_indel(fn):
-	'''read indels from .indel file into a list of Indels'''
+def read_indel_xmap_iter(fn):
+	'''read indels from .indel file, also called xmap format'''
 	indels = []
-	with open (fn) as f:
-		for line in f:
-			if not line.startswith('#'):
-				sl = line.strip().split('\t')
-				chrom = 'chr'+sl[2]
-				refStart = int(float(sl[6]))
-				refEnd = int(float(sl[7]))
-				confidence = float(sl[9])
-				typeStr = sl[10]
-				coordinates = [chrom, refStart, refEnd]
-				indel = Indel(coordinates, confidence, typeStr)
-				indels.append(indel)
-	return indels
-
-<<<<<<< HEAD
-
-def read_indel_iter(fn):
-	"""yield generator for Indels if the file is large"""
-	indels = []
-=======
-def read_indel_xmap_iter (fn):
-        indels = []
->>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
 	with open (fn) as f:
 		for line in f:
 			if not line.startswith('#'):
@@ -57,22 +34,10 @@ def read_indel_xmap_iter (fn):
 				coordinates = [chrom, refStart, refEnd]
 				indel = Indel(coordinates, confidence, typeStr)
 				yield indel
-
-<<<<<<< HEAD
-=======
-def read_indel_iter(fn):
-	"""yield generator for Indels if the file is large"""
-	print "entering read indel iter"
-	if ".bed" == fn[-4:]:
-                return read_indel_bed_iter(fn)
-        else:
-                return read_indel_xmap_iter (fn)
-	
-                
+             
 
 def read_indel_bed_iter(fn):
-	"""yield generator for Indels if the file is large"""
-	print "entering read indel bed iter"
+	"""read indels from .bed file"""
 	indels = []
 	with open (fn) as f:
 		for line in f:
@@ -80,18 +45,28 @@ def read_indel_bed_iter(fn):
 				sl = line.strip().split('\t')
 				chrom = sl[0][3:]
 				if chrom == "X":
-                                        chrom = 23
-                                if not chrom in (map(str, range(1, 24))):
-                                        continue
-                                chrom = "chr"+chrom
+					chrom = "23"
+				if not chrom in (map(str, range(1, 24))):
+					continue
+				chrom = "chr"+chrom
 				refStart = int(float(sl[1]))
 				refEnd = int(float(sl[2]))
-				confidence = 10
-				typeStr = "deletion"
+				confidence = 10 # ?
+				typeStr = "deletion" # need to be modified
 				coordinates = [chrom, refStart, refEnd]
 				indel = Indel(coordinates, confidence, typeStr)
 				yield indel
->>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
+
+
+def read_indel_iter(indel_fn):
+	'''wrapping read_indel_xmap_iter and read_indel_bed_iter'''
+	if indel_fn.endswith('.indel'):
+		return read_indel_xmap_iter(indel_fn)
+	elif indel_fn.endswith('.bed'):
+		return read_indel_bed_iter(indel_fn)
+	else:
+		raise IOError('Unrecognizable file extention in file: %s'%indel_fn)
+
 
 def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	'''a  function for mapping indels to genes'''
@@ -103,13 +78,11 @@ def mapping(indel_fn, annotation_fn='knownGenes.txt'):
 	c = 0 # indels mapped to CDS
 	d = 0 # indels mapped to exons
 	genes_indel = {} # genes with insertion/deletion
-<<<<<<< HEAD
 	insertion_lengths = []
 	deletion_lengths = []
 	print 'Mapping INDELs in %s to genome' % indel_fn
-=======
 	print "indel fn: %s" %(indel_fn)
->>>>>>> ce398a2a412faa52d8294c3d314398c8ca6d002a
+
 	for indel in read_indel_iter(indel_fn):
 		a += 1
 		if indel.chrom == 'chr23':
@@ -225,19 +198,12 @@ def genomic_distribution(indel_fn):
 			chroms_i.append(chrom)
 		else:
 			chroms_d.append(chrom)
-	if len(chroms_i) == 0:
-                c_chroms_i = Counter()
-        else:
-        	c_chroms_i = Counter(chroms_i)
-        if len(chroms_d) == 0:
-                c_chroms_d = Counter()
-        else:
-        	c_chroms_d = Counter(chroms_d)
+		c_chroms_i = Counter(chroms_i)
+		c_chroms_d = Counter(chroms_d)
 	return c_chroms_i, c_chroms_d
 
 
 def plot_pie(a, b, c, d):
-        print >>sys.stderr, "a: %s, b: %s, c: %s, d: %s" %(a, b, c, d)
 	a = float(a)
 	pie_chart = pg.Pie()
 	pie_chart.title = 'Indels mapped to genomic elements (in %)'
@@ -321,12 +287,13 @@ def write_output(indel_fn, d_term_genes, a, b, c, d):
 
 def output_wraper(indel_fn, d_term_genes, a, b, c, d, insertion_lengths, deletion_lengths, indels):
 	c_chroms_i, c_chroms_d = genomic_distribution(indel_fn)
+	dirname = 'output_'
+	dirname += '_'.join(indel_fn.split('.'))
 	try:
-		os.mkdir('output')
-	except:
-                print >>sys.stderr, "was not able to create directory, output"
+		os.mkdir(dirname)
+	except WindowsError:
 		pass
-	os.chdir('./output')
+	os.chdir('./%s'%dirname)
 	write_output(indel_fn, d_term_genes, a, b, c, d)
 	indels2bed(indels, indel_fn)
 	d2gmt(d_term_genes, 'genes_affected_by_indels.gmt')
